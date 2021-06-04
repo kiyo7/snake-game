@@ -25,3 +25,20 @@ export const initFields = (fieldSize, snake) => {
 
   return fields;
 };
+
+//壁に当たったかの判定 マイナスor FieldSizeを超える場合
+export const isCollision = (fieldSize, position) => {
+  if (position.y < 0 || position.x < 0) {
+    return true;
+  }
+
+  if (position.y > fieldSize - 1 || position.x > fieldSize - 1) {
+    return true;
+  }
+  return false;
+};
+
+export const isEatingMySelf = (fields, position) => {
+  //自分を食べてしまった時の処理
+  return fields[position.y][position.x] === "snake";
+};
