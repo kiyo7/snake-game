@@ -5,9 +5,12 @@ import Button from "./components/Button";
 import ManipulationPanel from "./components/ManipulationPanel";
 import { initFields, getFoodPosition } from "./utils/index";
 
+const fieldSize = 35;
 const initialPosition = { x: 17, y: 17 };
-const initialValues = initFields(35, initialPosition); //初期値
+const initialValues = initFields(fieldSize, initialPosition); //初期値
 const defaultInterval = 100;
+const defaultDifficulty = 3;
+const Difficulty = [1000, 500, 100, 50, 10];
 
 //オブジェクトで色々定義
 const GameStatus = Object.freeze({
@@ -54,7 +57,7 @@ const unsubscribe = () => {
   clearInterval(timer); //タイマーの削除
 };
 
-//壁に当たったかの判定　マイナスor FieldSizeを超える場合
+//壁に当たったかの判定 マイナスor FieldSizeを超える場合
 const isCollision = (fieldSize, position) => {
   if (position.y < 0 || position.x < 0) {
     return true;
@@ -76,15 +79,17 @@ function App() {
   const [status, setStatus] = useState(GameStatus.init);
   const [direction, setDirection] = useState(Direction.up);
   const [tick, setTick] = useState(0);
+  const [difficulty, setDifficulty] = useState(defaultDifficulty);
 
   useEffect(() => {
     setBody([initialPosition]); // positionの初期値を初回レンダリング時に設定
+    const interval = Difficulty[difficulty - 1];
     timer = setInterval(() => {
       // ゲームの中の時間を管理する
       setTick((tick) => tick + 1);
-    }, defaultInterval);
+    }, interval);
     return unsubscribe; //コンポーネントが消えるタイミングで実行（今回は、サイトが更新された時）
-  }, []);
+  }, [difficulty]);
 
   useEffect(() => {
     if (body.length === 0 || status !== GameStatus.playing) {
@@ -99,6 +104,8 @@ function App() {
   // console.log(status); //tickを使い常にゲームの状態を把握している 同行のconsoleで見たら理解できる
 
   const onStart = () => setStatus(GameStatus.playing); // initからplayingへ
+
+  const onStop = () => setStatus(GameStatus.suspended); //一時停止
 
   //GameOver時のリセット処理
   const onRestart = () => {
@@ -127,6 +134,20 @@ function App() {
       setDirection(newDirection);
     },
     [direction, status]
+  );
+
+  const onChangeDifficulty = useCallback(
+    (difficulty) => {
+      if (status !== GameStatus.init) {
+        //難易度の変更はinit時のみ受付
+        return;
+      }
+      if (difficulty < 1 || difficulty > Difficulty.length) {
+        return;
+      }
+      setDifficulty(difficulty);
+    },
+    [status, difficulty]
   );
 
   useEffect(() => {
@@ -178,14 +199,23 @@ function App() {
         <div className="title-container">
           <h1 className="title">Snake Game</h1>
         </div>
-        <Navigation />
+        <Navigation
+          length={body.length}
+          difficulty={difficulty}
+          onChangeDifficulty={onChangeDifficulty}
+        />
       </header>
       <main className="main">
         <Field fields={fields} />
       </main>
 
       <footer className="footer">
-        <Button status={status} onStart={onStart} onRestart={onRestart} />
+        <Button
+          status={status}
+          onStart={onStart}
+          onRestart={onRestart}
+          onStop={onStop}
+        />
         <ManipulationPanel onChange={onChangeDirection} />
       </footer>
     </div>
