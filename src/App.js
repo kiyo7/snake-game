@@ -9,6 +9,7 @@ const initialPosition = { x: 17, y: 17 };
 const initialValues = initFields(35, initialPosition); //初期値
 const defaultInterval = 100;
 
+//オブジェクトで色々定義
 const GameStatus = Object.freeze({
   init: "init",
   playing: "playing",
@@ -36,7 +37,7 @@ const OppositeDirection = Object.freeze({
   left: "right",
   down: "up",
 });
-
+//それぞれの方向に進めるようにする
 const Delta = Object.freeze({
   up: { x: 0, y: -1 },
   right: { x: 1, y: 0 },
@@ -53,6 +54,7 @@ const unsubscribe = () => {
   clearInterval(timer); //タイマーの削除
 };
 
+//壁に当たったかの判定　マイナスor FieldSizeを超える場合
 const isCollision = (fieldSize, position) => {
   if (position.y < 0 || position.x < 0) {
     return true;
@@ -62,6 +64,10 @@ const isCollision = (fieldSize, position) => {
     return true;
   }
   return false;
+};
+
+const isEatingMySelf = (fields, position) => {
+  return fields[position.y][position.x] === "snake";
 };
 
 function App() {
@@ -82,6 +88,7 @@ function App() {
 
   useEffect(() => {
     if (body.length === 0 || status !== GameStatus.playing) {
+      //スネークの長さが0,stateがplaying意外ならreturn
       return;
     }
     const canContinue = handleMoving();
@@ -89,9 +96,11 @@ function App() {
       setStatus(GameStatus.gameover);
     }
   }, [tick]);
+  // console.log(status); //tickを使い常にゲームの状態を把握している 同行のconsoleで見たら理解できる
 
-  const onStart = () => setStatus(GameStatus.playing);
+  const onStart = () => setStatus(GameStatus.playing); // initからplayingへ
 
+  //GameOver時のリセット処理
   const onRestart = () => {
     timer = setInterval(() => {
       setTick((tick) => tick + 1);
@@ -102,13 +111,17 @@ function App() {
     setFields(initFields(35, initialPosition));
   };
 
+  //パフォーマンス向上のためのuseCallback レンダー毎に読み込むのではなく第2引数の[direction, status]に変更があった時のみ関数を読み込む
   const onChangeDirection = useCallback(
     (newDirection) => {
       if (status !== GameStatus.playing) {
         return direction;
       }
-      console.log(direction);
+      // console.log(direction); //console 進んでいた方向
+      // console.log(newDirection); // console 次に入力された方向
       if (OppositeDirection[direction] === newDirection) {
+        //オブジェクトには[]でもアクセス可能
+        //例：upならOppositeはdownこの例では左辺はdown 次に入力された方向がdownなら無効 進行方向の逆は入力できないって感じ
         return;
       }
       setDirection(newDirection);
@@ -119,36 +132,41 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       const newDirection = DirectionKeyCodeMap[e.keyCode];
+      console.log(newDirection);
       if (!newDirection) {
+        //カーソル以外のキーはundefindを返す
         return;
       }
       onChangeDirection(newDirection);
     };
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown); //パフォーマンス向上のためコンポーネントが死んだ時イベントリスナを解除する
   }, [onChangeDirection]);
 
   const handleMoving = () => {
-    const { x, y } = body[0];
+    const { x, y } = body[0]; //bodyはスネークの長さ
     const delta = Delta[direction];
     const newPosition = {
       x: x + delta.x,
       y: y + delta.y,
     };
-    if (isCollision(fields.length, newPosition)) {
+    if (
+      isCollision(fields.length, newPosition) ||
+      isEatingMySelf(fields, newPosition)
+    ) {
+      //GameOverかの確認
       return false;
     }
-    const newBody = [...body];
+    const newBody = [...body]; //破壊的変更を加える前にコピーをとる
     if (fields[newPosition.y][newPosition.x] !== "food") {
       const removingTrack = newBody.pop();
       fields[removingTrack.y][removingTrack.x] = "";
     } else {
       const food = getFoodPosition(fields.length, [...newBody, newPosition]);
-      fields[food.y][food.x] = "food";
+      fields[food.y][food.x] = "food"; //2回目以降の餌を出現させる
     }
-    fields[newPosition.y][newPosition.x] = "snake";
-    newBody.unshift(newPosition);
-
+    fields[newPosition.y][newPosition.x] = "snake"; //スネークの長さを増やす
+    newBody.unshift(newPosition); //配列の先頭にスネークを加える（破壊的変更）
     setBody(newBody);
     setFields(fields);
     return true;
