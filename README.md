@@ -1,4 +1,4 @@
-#スネークゲーム作ったよ
+#　　スネークゲーム作ったよ
 
 # Getting Started with Create React App
 
